@@ -10,6 +10,7 @@ export type AxiosErrorResponse = { error: string };
 export default function HomePage() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [darkMode, setDarkMode] = useState(true); // Dark mode default
 
@@ -24,6 +25,7 @@ export default function HomePage() {
       console.log("Uploaded video response:", data);
       setVideoFile(null);
       setGeneratedVideoUrl(data.final_video_url);
+      setSuccessMessage("✅ Your translated, lip-synced video is ready!");
       setProcessing(false);
     },
     onError: (error: unknown) => {
@@ -113,7 +115,7 @@ export default function HomePage() {
               : "bg-green-600 hover:bg-green-700"
           } text-white transition`}
         >
-          {uploadVideoMutation.isPending ? "Uploading..." : "Upload Video"}
+          {uploadVideoMutation.isPending ? "Uploading..." : "Generate Video"}
         </button>
       )}
 
@@ -122,6 +124,14 @@ export default function HomePage() {
         <div className="mt-6 flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
           <p className="mt-4 text-gray-400 text-sm">Processing video, please wait...</p>
+        </div>
+      )}
+
+      {/* Success message */}
+      {successMessage && !processing && (
+        <div className={`mt-8 px-6 py-4 rounded-md shadow-md text-center font-medium 
+          ${darkMode ? "bg-green-900 text-green-300 border border-green-700" : "bg-green-100 text-green-800 border border-green-300"}`}>
+          {successMessage}
         </div>
       )}
 
