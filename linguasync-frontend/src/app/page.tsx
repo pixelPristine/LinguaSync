@@ -43,7 +43,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className={`${darkMode ? "bg-gray-1000 text-gray-100" : "bg-gray-50 text-gray-800"} min-h-[100dvh] flex flex-col items-center justify-start p-6 font-sans transition-colors duration-300`}>
+    <main className={`${darkMode ? "bg-gray-950 text-gray-100" : "bg-gray-50 text-gray-800"} min-h-[100dvh] flex flex-col items-center justify-start p-6 font-sans transition-colors duration-300`}>
       
       {/* Toggle Button */}
       <div className="w-full flex justify-end">
