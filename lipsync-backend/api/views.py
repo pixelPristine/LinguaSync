@@ -1,0 +1,102 @@
+from django.shortcuts import render
+from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+from .transcription import transcription
+from .translate import translation
+from .inference import tts_inference, load_model
+from .video_to_wav import mp4_to_wav
+import os
+import uuid
+import requests
+
+# Load once
+XTTS_MODEL = load_model(
+    checkpoint_path=os.path.join("api", "model.pth"),
+    config_path=os.path.join("api", "config.json"),
+    vocab_path=os.path.join("api", "vocab.json")
+)
+
+# Create your views here.
+class VideoUploadView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self,request, format=None):
+        file_obj = request.FILES.get('video')
+        if not file_obj:
+            return Response({"error":"No video file provided."},status=status.HTTP_400_BAD_REQUEST)
+            
+        # Create unique folder name (based on UUID or timestamp)
+        video_id = f"video_{uuid.uuid4().hex[:8]}"
+        video_folder = os.path.join("media", video_id)
+        os.makedirs(video_folder, exist_ok=True)
+        
+        # Save video to that folder
+        video_filename = "input.mp4"
+        video_path = os.path.join(video_folder, video_filename)
+
+        with open(video_path, 'wb+') as destination:        
+            for chunk in file_obj.chunks():
+                destination.write(chunk)
+
+        # Output directory for audio
+        audio_storage_path = os.path.join(video_folder, "original_audio.wav")
+        output_audio_path = os.path.join(video_folder, "output_audio.wav")
+
+        print('Audio storage path:', audio_storage_path)
+        print('Output audio path:', output_audio_path)
+
+        # Step 1: Convert video to audio        
+        mp4_to_wav(video_path,audio_storage_path)
+                
+        # Step 2: Transcription
+        transcription_text, full_result = transcription(video_path)
+        if not transcription_text:
+            return Response({"error":"Transcription failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Step 3: Translation
+        urdu_text = translation(transcription_text,video_path)
+                
+        # Step 4: TTS Model Inference
+        tts_inference(XTTS_MODEL, audio_path=audio_storage_path, text=urdu_text, output_path=output_audio_path)
+        
+        # Step 5: LipSync
+        with open(video_path, 'rb') as video_file, open(output_audio_path, 'rb') as audio_file:
+            files = {
+                'video': ('input.mp4', video_file, 'video/mp4'),
+                'audio': ('output_audio.wav', audio_file, 'audio/wav')
+            }
+
+            try:
+                response = requests.post('http://localhost:5001/run', files=files)
+                if response.status_code == 200:
+                    result_video_path = os.path.join(video_folder, "final_result.mp4")
+                    with open(result_video_path, 'wb') as f:
+                        f.write(response.content)
+                else:
+                    return Response({"error": "Model B failed to process the video."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            except requests.exceptions.RequestException as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+        # After saving result_video_path
+        final_video_url = f"http://localhost:8000/{video_folder.replace(os.sep, '/')}/final_result.mp4"
+
+        return Response({
+            "message": "Video uploaded successfully",
+            "file_path": video_path,
+            "final_video_url": final_video_url,   # <-- ADD this
+            "transcript": transcription_text,
+            "urdu_transcript": urdu_text,
+            "speaker_count": len(set(utt.get('speaker') for utt in full_result.get('utterances', [])))
+        }, status=status.HTTP_201_CREATED)
+                
+        # return Response({
+        #     "message": "Video uploaded successfully",
+        #     "file_path": video_path,
+        #     "transcript":transcription_text,
+        #     "urdu_transcript":urdu_text,
+        #     "speaker_count": len(set(utt.get('speaker') for utt in full_result.get('utterances', [])))
+        # }, status=status.HTTP_201_CREATED)
