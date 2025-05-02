@@ -4,3 +4,4 @@
 /media/*
 /api/model.pth
 __pycache__/
+firebase-credentials.json

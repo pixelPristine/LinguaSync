@@ -11,7 +11,7 @@ import os
 import uuid
 import requests
 
-# Load once
+# # Load once
 XTTS_MODEL = load_model(
     checkpoint_path=os.path.join("api", "model.pth"),
     config_path=os.path.join("api", "config.json"),
@@ -100,3 +100,60 @@ class VideoUploadView(APIView):
         #     "urdu_transcript":urdu_text,
         #     "speaker_count": len(set(utt.get('speaker') for utt in full_result.get('utterances', [])))
         # }, status=status.HTTP_201_CREATED)
+
+
+from backend.firebase import db, firestore
+from django.contrib.auth.models import User
+
+
+class SignupView(APIView):
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        if not username or not password:
+            return Response({"error": "Username and password required"}, status=400)
+
+        # Optional: Check if user exists in Firestore
+        user_ref = db.collection("users").document(username)
+        if user_ref.get().exists:
+            return Response({"error": "User already exists"}, status=400)
+
+        # You may still want to store password hash locally or use Firebase Auth for that
+        # For now, we create a record in Firestore
+        user_ref.set({
+            "username": username,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        })
+
+        # Generate your own JWT (or use simplejwt)
+        from rest_framework_simplejwt.tokens import RefreshToken
+        user_obj = User.objects.create_user(username=username, password=password)
+        refresh = RefreshToken.for_user(user_obj)
+
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        })
+
+
+from django.contrib.auth import authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class LoginView(APIView):
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        if not username or not password:
+            return Response({"error": "Username and password required"}, status=400)
+
+        user = authenticate(username=username, password=password)  # ← move this out
+
+        if user is None:
+            return Response({"error": "Invalid credentials"}, status=401)
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        })
+

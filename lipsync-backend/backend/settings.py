@@ -140,7 +140,17 @@ CORS_ALLOW_METHODS = [
     "POST",
     "PUT",
 ]
+
+from pathlib import Path
 import os
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR,'media')
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+BASE_DIR = Path(__file__).resolve().parent.parent
+FIREBASE_CREDENTIALS_PATH = os.path.join(BASE_DIR,'firebase-credentials.json')
