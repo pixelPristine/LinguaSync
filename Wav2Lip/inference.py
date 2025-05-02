@@ -8,6 +8,38 @@ import torch, face_detection
 from models import Wav2Lip
 import platform
 
+def trim_video_by_face(input_video_path, output_video_path):
+
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    cap = cv2.VideoCapture(input_video_path)
+
+    if not cap.isOpened():
+        raise Exception(f"Failed to open video: {input_video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (frame_width, frame_height))
+
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    for _ in tqdm(range(frame_count), desc="Trimming video"):
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+
+        if len(faces) > 0:
+            out.write(frame)
+
+    cap.release()
+    out.release()
+    print(f"Trimmed video saved to {output_video_path}")
+
+
 parser = argparse.ArgumentParser(description='Inference code to lip-sync videos in the wild using Wav2Lip models')
 
 parser.add_argument('--checkpoint_path', type=str, 
@@ -52,23 +84,7 @@ parser.add_argument('--nosmooth', default=False, action='store_true',
 
 args = parser.parse_args()
 
-# args = argparse.Namespace(
-#     checkpoint_path = r"checkpoints\wav2lip_gan.pth",
-#     face = r"..\..\API Scripts\content\fyp_storage\video.mp4",
-#     audio = r"..\..\API Scripts\content\fyp_storage\final_audio.wav",
-#     outfile = r"results\result_voice.mp4",
 
-#     static = False,
-#     fps = 25.,
-#     pads = [0, 10, 0, 0],
-#     face_det_batch_size = 16,
-#     wav2lip_batch_size = 128,
-#     resize_factor = 1,
-#     crop = [0, -1, 0, -1],
-#     box = [-1, -1, -1, -1],
-#     rotate = False,
-#     nosmooth = False
-# )
 args.img_size = 96
 
 if os.path.isfile(args.face) and args.face.split('.')[1] in ['jpg', 'png', 'jpeg']:
@@ -205,6 +221,11 @@ def main():
 		fps = args.fps
 
 	else:
+		# Step 1: Trim the video first
+		trimmed_video_path = 'trimmed_' + os.path.basename(args.face)
+		trim_video_by_face(args.face, trimmed_video_path)
+		args.face = trimmed_video_path
+
 		video_stream = cv2.VideoCapture(args.face)
 		fps = video_stream.get(cv2.CAP_PROP_FPS)
 
@@ -234,10 +255,7 @@ def main():
 
 	if not args.audio.endswith('.wav'):
 		print('Extracting raw audio...')
-		# command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav')
-		# command = f'ffmpeg -y -i "{args.audio}" -strict -2 temp/temp.wav'
-		# subprocess.call(command, shell=True)
-  
+
 		subprocess.run(['ffmpeg', '-y', '-i', args.audio, '-strict', '-2', 'temp/temp.wav'])
 
 
@@ -295,8 +313,6 @@ def main():
 
 	out.release()
 
-	# command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 1 {}'.format(args.audio, 'temp/result.avi', args.outfile)
-	# subprocess.call(command, shell=platform.system() != 'Windows')
  
 	subprocess.run([
     'ffmpeg', '-y',
