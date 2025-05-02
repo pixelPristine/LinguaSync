@@ -53,6 +53,8 @@ Success/failure feedback
 User flow from login to final translated video
 
 📌 Notes
+
+
 Only .mp4 videos are supported for both upload and processing.
 
 Users must be logged in to access the landing page and features.
