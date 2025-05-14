@@ -12,11 +12,11 @@ import uuid
 import requests
 
 # # # Load once
-# XTTS_MODEL = load_model(
-#     checkpoint_path=os.path.join("api", "model.pth"),
-#     config_path=os.path.join("api", "config.json"),
-#     vocab_path=os.path.join("api", "vocab.json")
-# )
+XTTS_MODEL = load_model(
+    checkpoint_path=os.path.join("api", "model.pth"),
+    config_path=os.path.join("api", "config.json"),
+    vocab_path=os.path.join("api", "vocab.json")
+)
 
 # Create your views here.
 class VideoUploadView(APIView):
