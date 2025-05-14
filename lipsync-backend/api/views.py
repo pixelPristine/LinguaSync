@@ -10,6 +10,8 @@ from .video_to_wav import mp4_to_wav
 import os
 import uuid
 import requests
+from rest_framework.permissions import AllowAny
+
 
 # # # Load once
 XTTS_MODEL = load_model(
@@ -20,6 +22,8 @@ XTTS_MODEL = load_model(
 
 # Create your views here.
 class VideoUploadView(APIView):
+    permission_classes = [AllowAny]
+
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self,request, format=None):
@@ -110,6 +114,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
+from django.contrib.auth.models import User
+
 
 
 # Helper function to hash password
@@ -141,12 +147,9 @@ class SignupView(APIView):
             "created_at": firestore.SERVER_TIMESTAMP,
         })
 
-        # Use an AnonymousUser or custom token payload if no Django user
-        dummy_user = AnonymousUser()
-        dummy_user.username = username  # Needed to generate tokens with simplejwt
-
-        refresh = RefreshToken.for_user(dummy_user)
-        refresh["username"] = username  # Optional custom claim
+        user, created = User.objects.get_or_create(username=username)
+        refresh = RefreshToken.for_user(user)
+        refresh["username"] = username
 
         return Response({
             "access": str(refresh.access_token),
@@ -171,11 +174,11 @@ class LoginView(APIView):
         if not stored_hash or not verify_password(password, stored_hash):
             return Response({"error": "Invalid credentials"}, status=401)
 
-        dummy_user = AnonymousUser()
-        dummy_user.username = username
+        # In LoginView:
+        user, _ = User.objects.get_or_create(username=username)
+        refresh = RefreshToken.for_user(user)
+        refresh["username"] = username
 
-        refresh = RefreshToken.for_user(dummy_user)
-        refresh["username"] = username  # Optional
 
         return Response({
             "access": str(refresh.access_token),
