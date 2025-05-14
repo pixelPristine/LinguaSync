@@ -11,12 +11,12 @@ import os
 import uuid
 import requests
 
-# # Load once
-XTTS_MODEL = load_model(
-    checkpoint_path=os.path.join("api", "model.pth"),
-    config_path=os.path.join("api", "config.json"),
-    vocab_path=os.path.join("api", "vocab.json")
-)
+# # # Load once
+# XTTS_MODEL = load_model(
+#     checkpoint_path=os.path.join("api", "model.pth"),
+#     config_path=os.path.join("api", "config.json"),
+#     vocab_path=os.path.join("api", "vocab.json")
+# )
 
 # Create your views here.
 class VideoUploadView(APIView):
@@ -102,8 +102,24 @@ class VideoUploadView(APIView):
         # }, status=status.HTTP_201_CREATED)
 
 
+import hashlib
+import hmac
 from backend.firebase import db, firestore
-from django.contrib.auth.models import User
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.models import AnonymousUser
+from django.conf import settings
+
+
+# Helper function to hash password
+def hash_password(password: str) -> str:
+    # You can also use bcrypt or passlib if needed
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def verify_password(input_password: str, stored_password_hash: str) -> bool:
+    return hmac.compare_digest(hash_password(input_password), stored_password_hash)
 
 
 class SignupView(APIView):
@@ -113,31 +129,30 @@ class SignupView(APIView):
         if not username or not password:
             return Response({"error": "Username and password required"}, status=400)
 
-        # Optional: Check if user exists in Firestore
         user_ref = db.collection("users").document(username)
         if user_ref.get().exists:
             return Response({"error": "User already exists"}, status=400)
 
-        # You may still want to store password hash locally or use Firebase Auth for that
-        # For now, we create a record in Firestore
+        password_hash = hash_password(password)
+
         user_ref.set({
             "username": username,
+            "password_hash": password_hash,
             "created_at": firestore.SERVER_TIMESTAMP,
         })
 
-        # Generate your own JWT (or use simplejwt)
-        from rest_framework_simplejwt.tokens import RefreshToken
-        user_obj = User.objects.create_user(username=username, password=password)
-        refresh = RefreshToken.for_user(user_obj)
+        # Use an AnonymousUser or custom token payload if no Django user
+        dummy_user = AnonymousUser()
+        dummy_user.username = username  # Needed to generate tokens with simplejwt
+
+        refresh = RefreshToken.for_user(dummy_user)
+        refresh["username"] = username  # Optional custom claim
 
         return Response({
             "access": str(refresh.access_token),
             "refresh": str(refresh)
         })
 
-
-from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
 
 class LoginView(APIView):
     def post(self, request):
@@ -146,14 +161,23 @@ class LoginView(APIView):
         if not username or not password:
             return Response({"error": "Username and password required"}, status=400)
 
-        user = authenticate(username=username, password=password)  # ← move this out
-
-        if user is None:
+        user_doc = db.collection("users").document(username).get()
+        if not user_doc.exists:
             return Response({"error": "Invalid credentials"}, status=401)
 
-        refresh = RefreshToken.for_user(user)
+        user_data = user_doc.to_dict()
+        stored_hash = user_data.get("password_hash")
+
+        if not stored_hash or not verify_password(password, stored_hash):
+            return Response({"error": "Invalid credentials"}, status=401)
+
+        dummy_user = AnonymousUser()
+        dummy_user.username = username
+
+        refresh = RefreshToken.for_user(dummy_user)
+        refresh["username"] = username  # Optional
+
         return Response({
             "access": str(refresh.access_token),
             "refresh": str(refresh)
         })
-
