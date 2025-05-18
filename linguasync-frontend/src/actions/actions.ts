@@ -18,9 +18,10 @@ import axios from "axios";
 //   }
 // };
 
-export const uploadVideo = async (videoFile: File) => {
+export const uploadVideo = async (videoFile: File, languageCode: string) => {
   const formData = new FormData();
   formData.append("video", videoFile); // 'video' is the field name your API expects
+  formData.append("language", languageCode); // Add the selected language
 
   try {
     const response = await axiosInstance.post(`/api/upload/`, formData, {

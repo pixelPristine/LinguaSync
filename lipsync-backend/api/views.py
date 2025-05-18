@@ -10,7 +10,7 @@ from .video_to_wav import mp4_to_wav
 import os
 import uuid
 import requests
-from rest_framework.permissions import AllowAny
+# from rest_framework.permissions import AllowAny
 
 
 # # # Load once
@@ -22,12 +22,15 @@ XTTS_MODEL = load_model(
 
 # Create your views here.
 class VideoUploadView(APIView):
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]
 
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self,request, format=None):
         file_obj = request.FILES.get('video')
+        target = request.POST.get('language')
+        source='en'
+        
         if not file_obj:
             return Response({"error":"No video file provided."},status=status.HTTP_400_BAD_REQUEST)
             
@@ -48,6 +51,7 @@ class VideoUploadView(APIView):
         audio_storage_path = os.path.join(video_folder, "original_audio.wav")
         output_audio_path = os.path.join(video_folder, "output_audio.wav")
 
+        print('Target Language', target)
         print('Audio storage path:', audio_storage_path)
         print('Output audio path:', output_audio_path)
 
@@ -60,10 +64,11 @@ class VideoUploadView(APIView):
             return Response({"error":"Transcription failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Step 3: Translation
-        urdu_text = translation(transcription_text,video_path)
+        # urdu_text = translation(transcription_text,video_path)
+        urdu_text = translation(transcription_text,video_path, target, source)
                 
         # Step 4: TTS Model Inference
-        tts_inference(XTTS_MODEL, audio_path=audio_storage_path, text=urdu_text, output_path=output_audio_path)
+        tts_inference(XTTS_MODEL, audio_path=audio_storage_path, text=urdu_text, output_path=output_audio_path, lang=target)
         
         # Step 5: LipSync
         with open(video_path, 'rb') as video_file, open(output_audio_path, 'rb') as audio_file:

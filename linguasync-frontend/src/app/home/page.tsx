@@ -11,12 +11,13 @@ export default function HomePage() {
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+  const [language, setLanguage] = useState("ur"); // Default to Urdu
 
   const uploadVideoMutation = useMutation({
     mutationFn: async () => {
       if (!videoFile) throw new Error("No video selected");
       setProcessing(true);
-      const response = await uploadVideo(videoFile);
+      const response = await uploadVideo(videoFile, language);
       return response;
     },
     onSuccess: (data) => {
@@ -123,6 +124,45 @@ export default function HomePage() {
           className="w-full max-w-2xl mt-4 rounded shadow"
         />
       )}
+
+      {/* Language Selection Dropdown */}
+      <div className="mt-6 w-full max-w-xs text-sm">
+        <label className="block mb-2 font-medium">
+          Select Target Language:
+        </label>
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          disabled={processing}
+          className={`w-full p-2 rounded-lg shadow-sm outline-none transition duration-300 ${
+            darkMode
+              ? "bg-gray-800 text-white border border-gray-700 focus:ring-2 focus:ring-blue-500"
+              : "bg-white text-black border border-gray-300 focus:ring-2 focus:ring-blue-500"
+          }`}
+        >
+          {[
+            { code: "es", label: "Spanish" },
+            { code: "de", label: "German" },
+            { code: "it", label: "Italian" },
+            { code: "pt", label: "Portuguese" },
+            { code: "pl", label: "Polish" },
+            { code: "tr", label: "Turkish" },
+            { code: "ru", label: "Russian" },
+            { code: "nl", label: "Dutch" },
+            { code: "cs", label: "Czech" },
+            { code: "ar", label: "Arabic" },
+            { code: "hu", label: "Hungarian" },
+            { code: "ko", label: "Korean" },
+            { code: "hi", label: "Hindi" },
+            { code: "ur", label: "Urdu" },
+          ].map(({ code, label }) => (
+            <option key={code} value={code}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+
 
       {/* Generate Video Button */}
       <button

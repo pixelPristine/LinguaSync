@@ -47,7 +47,8 @@ class TranslationService:
 
 def translate_transcript(transcription_text, 
                         #  output_file, 
-                         credentials_path=None
+                         credentials_path=None,
+                         target_language='ur', source_language='en'
     ):
     """
     Translate a transcript file to Urdu
@@ -66,11 +67,11 @@ def translate_transcript(transcription_text,
     #     print(f"Input file {input_file} not found.")
     #     return
 
-    translated_transcript = translator.translate_text(transcription_text)
+    translated_transcript = translator.translate_text(transcription_text, target_language=target_language, source_language=source_language)
     return translated_transcript
 
 
-def translation(transcription_text,video_path):
+def translation(transcription_text,video_path, target_language='ur', source_language='en'):
     CREDENTIALS_PATH = os.path.join(settings.BASE_DIR,'config','fyp-translation-343ed05af2bb.json') 
 
 
@@ -82,6 +83,7 @@ def translation(transcription_text,video_path):
     urdu_text = translate_transcript(
         transcription_text=transcription_text,
         # output_file=urdu_txt_output_path,
-        credentials_path=CREDENTIALS_PATH
+        credentials_path=CREDENTIALS_PATH,
+        target_language=target_language, source_language=source_language
     )
     return urdu_text

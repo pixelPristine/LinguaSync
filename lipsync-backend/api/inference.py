@@ -34,7 +34,7 @@ def split_text(text, max_length=150):
         chunks.append(current_chunk)
     return chunks
 
-def tts_inference(model, audio_path, text, output_path):
+def tts_inference(model, audio_path, text, output_path, lang="ur"):
     print("Starting inference...")
 
     audio = AudioSegment.from_file(audio_path, format="wav")
@@ -57,7 +57,7 @@ def tts_inference(model, audio_path, text, output_path):
     for i, chunk in enumerate(tqdm(text_chunks, desc="Synthesizing")):
         wav_chunk = model.inference(
             text=chunk,
-            language="ur",
+            language=lang,
             gpt_cond_latent=gpt_cond_latent,
             speaker_embedding=speaker_embedding,
             temperature=0.1,
