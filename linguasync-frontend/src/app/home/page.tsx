@@ -206,7 +206,7 @@ export default function HomePage() {
           What Does LinguaSync Do?
         </h2>
         <p>
-          LinguaSync translates English speech to Urdu, generates cloned Urdu
+          LinguaSync translates English speech to a specified target language, generates cloned
           audio, and synchronizes the original video’s lips using Wav2Lip to
           produce a natural result.
         </p>
